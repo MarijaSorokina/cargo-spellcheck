@@ -1,4 +1,4 @@
-//! Erase markdown syntax
+//! Erase cmark syntax
 //!
 //! Resulting overlay is plain and can be fed into a grammer or spell checker.
 
@@ -12,19 +12,19 @@ use crate::documentation::{CheckableChunk, Range};
 use crate::util::sub_chars;
 use crate::Span;
 
-/// A plain representation of markdown riddled set of trimmed literals.
+/// A plain representation of cmark riddled set of a chunk.
 #[derive(Clone)]
 pub struct PlainOverlay<'a> {
     raw: &'a CheckableChunk,
     plain: String,
     // require a sorted map, so we have the chance of binary search
     // key: plain string range
-    // value: the corresponding areas in the full markdown
+    // value: the corresponding areas in the full cmark
     mapping: IndexMap<Range, Range>,
 }
 
 impl<'a> PlainOverlay<'a> {
-    fn track(s: &str, markdown: Range, plain: &mut String, mapping: &mut IndexMap<Range, Range>) {
+    fn track(s: &str, cmark: Range, plain: &mut String, mapping: &mut IndexMap<Range, Range>) {
         // map the range within the plain data,
         // which is fed to the checker,
         // back to the repr with markdown modifiers
@@ -35,7 +35,7 @@ impl<'a> PlainOverlay<'a> {
                 start: x,
                 end: x + d,
             },
-            markdown,
+            cmark,
         );
         plain.push_str(&s);
     }
@@ -144,7 +144,7 @@ impl<'a> PlainOverlay<'a> {
 
     // @todo consider returning a Vec<PlainOverlay<'a>> to account for list items
     // or other non-linear information which might not pass a grammar check as a whole
-    pub fn erase_markdown(chunk: &'a CheckableChunk) -> Self {
+    pub fn erase_cmark(chunk: &'a CheckableChunk) -> Self {
         let (plain, mapping) = Self::extract_plain_with_mapping(chunk.as_str());
         Self {
             raw: chunk,
@@ -249,7 +249,7 @@ impl<'a> fmt::Debug for PlainOverlay<'a> {
 
         let color_cycle = styles.iter().cycle();
 
-        let markdown = self.raw.as_str().to_owned();
+        let commonmark = self.raw.as_str().to_owned();
 
         let mut coloured_plain = String::with_capacity(1024);
         let mut coloured_md = String::with_capacity(1024);
@@ -262,12 +262,12 @@ impl<'a> fmt::Debug for PlainOverlay<'a> {
             let delta = md_range.start.saturating_sub(previous_md_end);
             // take care of the markers and things that are not rendered
             if delta > 0 {
-                let s = sub_chars(markdown.as_str(), previous_md_end..md_range.start);
+                let s = sub_chars(commonmark.as_str(), previous_md_end..md_range.start);
                 coloured_md.push_str(uncovered.apply_to(s.as_str()).to_string().as_str());
             }
             previous_md_end = md_range.end;
 
-            let s = sub_chars(markdown.as_str(), md_range.clone());
+            let s = sub_chars(commonmark.as_str(), md_range.clone());
             coloured_md.push_str(style.apply_to(s.as_str()).to_string().as_str());
 
             let s = sub_chars(self.plain.as_str(), plain_range.clone());
@@ -275,7 +275,7 @@ impl<'a> fmt::Debug for PlainOverlay<'a> {
         }
         // write!(formatter, "{}", coloured_md)?;
 
-        writeln!(formatter, "Markdown:\n{}", coloured_md)?;
+        writeln!(formatter, "Commonmark:\n{}", coloured_md)?;
         writeln!(formatter, "Plain:\n{}", coloured_plain)?;
         Ok(())
     }
@@ -286,7 +286,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn markdown_reduction_mapping() {
+    fn commonmark_reduction_mapping() {
         // @todo add links
         const MARKDOWN: &str = r##"# Title number 1
 
@@ -330,16 +330,16 @@ And a line, or a rule."##;
 
         assert_eq!(dbg!(&reduced).as_str(), PLAIN);
         assert_eq!(dbg!(&mapping).len(), 19);
-        for (reduced_range, markdown_range) in mapping.iter() {
+        for (reduced_range, cmark_range) in mapping.iter() {
             assert_eq!(
                 reduced[reduced_range.clone()],
-                MARKDOWN[markdown_range.clone()]
+                MARKDOWN[cmark_range.clone()]
             );
         }
     }
 
     #[test]
-    fn markdown_reduction_mapping_leading_space() {
+    fn cmark_reduction_mapping_leading_space() {
         const MARKDOWN: &str = r#"  Some __underlined__ **bold** text."#;
         const PLAIN: &str = r#"Some underlined bold text."#;
 
@@ -347,10 +347,10 @@ And a line, or a rule."##;
 
         assert_eq!(dbg!(&reduced).as_str(), PLAIN);
         assert_eq!(dbg!(&mapping).len(), 5);
-        for (reduced_range, markdown_range) in mapping.iter() {
+        for (reduced_range, cmark_range) in mapping.iter() {
             assert_eq!(
                 reduced[reduced_range.clone()].to_owned(),
-                MARKDOWN[markdown_range.clone()].to_owned()
+                MARKDOWN[cmark_range.clone()].to_owned()
             );
         }
     }

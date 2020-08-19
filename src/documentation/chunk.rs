@@ -82,6 +82,32 @@ impl CheckableChunk {
         }
     }
 
+    /// Obtain an accessor object containing mapping and string repr, removing the markdown anotations.
+    pub fn erase_cmark(&self) -> PlainOverlay {
+        PlainOverlay::erase_cmark(self)
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.content.as_str()
+    }
+
+    pub fn display(&self, range: Range) -> ChunkDisplay {
+        ChunkDisplay::from((self, range))
+    }
+
+    pub fn iter(&self) -> indexmap::map::Iter<Range, Span> {
+        self.source_mapping.iter()
+    }
+
+    pub fn fragment_count(&self) -> usize {
+        self.source_mapping.len()
+    }
+
+    /// Obtain the length in characters.
+    pub fn len_in_chars(&self) -> usize {
+        self.content.chars().count()
+    }
+
     /// Find which part of the range maps to which span.
     /// Note that Range can very well be split into multiple fragments
     /// where each of them can be mapped to a potentially non-continuous
@@ -225,32 +251,6 @@ impl CheckableChunk {
             };
         }
         acc
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.content.as_str()
-    }
-
-    pub fn display(&self, range: Range) -> ChunkDisplay {
-        ChunkDisplay::from((self, range))
-    }
-
-    pub fn iter(&self) -> indexmap::map::Iter<Range, Span> {
-        self.source_mapping.iter()
-    }
-
-    pub fn fragment_count(&self) -> usize {
-        self.source_mapping.len()
-    }
-
-    /// Obtain an accessor object containing mapping and string repr, removing the markdown anotations.
-    pub fn erase_markdown(&self) -> PlainOverlay {
-        PlainOverlay::erase_markdown(self)
-    }
-
-    /// Obtain the length in characters.
-    pub fn len_in_chars(&self) -> usize {
-        self.content.chars().count()
     }
 }
 

@@ -6,10 +6,8 @@
 //! location by default. Default. Default default default.
 
 use crate::suggestion::Detector;
-use crate::wrap::WrapConfig;
+use crate::reflow::ReflowConfig;
 use anyhow::{anyhow, bail, Error, Result};
-use fancy_regex::Regex;
-
 use log::trace;
 use log::warn;
 use serde::{Deserialize, Serialize};
@@ -19,6 +17,7 @@ use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use fancy_regex::Regex;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
@@ -29,7 +28,7 @@ pub struct Config {
     #[serde(alias = "languageTool")]
     #[serde(alias = "Languagetool")]
     pub languagetool: Option<LanguageToolConfig>,
-    wrapper: Option<WrapConfig>,
+    reflow: Option<ReflowConfig>,
 }
 
 #[derive(Debug)]
@@ -490,7 +489,7 @@ impl Config {
         match detector {
             Detector::Hunspell => self.hunspell.is_some(),
             Detector::LanguageTool => self.languagetool.is_some(),
-            Detector::Wrapper => self.wrapper.is_some(),
+            Detector::Reflow => self.reflow.is_some(),
             #[cfg(test)]
             Detector::Dummy => true,
         }
@@ -540,7 +539,7 @@ impl Default for Config {
                 quirks: Some(Quirks::default()),
             }),
             languagetool: None,
-            wrapper: None,
+            reflow: None,
         }
     }
 }

@@ -149,7 +149,9 @@ pub(crate) mod tests {
 
         let docs = Documentation::from((ContentOrigin::TestEntity, TEST_SOURCE));
         assert_eq!(docs.entry_count(), 1);
-        let chunks = docs.get(&ContentOrigin::TestEntity).expect("Must contain dummy path");
+        let chunks = docs
+            .get(&ContentOrigin::TestEntity)
+            .expect("Must contain dummy path");
         assert_eq!(dbg!(chunks).len(), 1);
 
         // @todo
@@ -200,11 +202,10 @@ pub(crate) mod tests {
 
         ($test:expr, $origin:expr, $n:expr, $checker:ty) => {{
             let _ = env_logger::from_env(
-                    env_logger::Env::new()
-                        .filter_or("CARGO_SPELLCHECK", "cargo_spellcheck=trace")
-                )
-                .is_test(true)
-                .try_init();
+                env_logger::Env::new().filter_or("CARGO_SPELLCHECK", "cargo_spellcheck=trace"),
+            )
+            .is_test(true)
+            .try_init();
 
             let origin = $origin;
             let docs = Documentation::from((origin.clone(), $test));
@@ -215,8 +216,8 @@ pub(crate) mod tests {
             let _plain = chunk.erase_cmark();
 
             let cfg = Default::default();
-            let suggestion_set = <$checker>::check(&docs, &cfg)
-                .expect("Must not fail to extract suggestions");
+            let suggestion_set =
+                <$checker>::check(&docs, &cfg).expect("Must not fail to extract suggestions");
             let (_, suggestions) = suggestion_set
                 .iter()
                 .next()

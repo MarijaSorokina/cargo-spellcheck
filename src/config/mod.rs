@@ -5,9 +5,10 @@
 //! A default configuration will be generated in the default
 //! location by default. Default. Default default default.
 
-use crate::suggestion::Detector;
 use crate::reflow::ReflowConfig;
+use crate::suggestion::Detector;
 use anyhow::{anyhow, bail, Error, Result};
+use fancy_regex::Regex;
 use log::trace;
 use log::warn;
 use serde::{Deserialize, Serialize};
@@ -17,7 +18,6 @@ use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use fancy_regex::Regex;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]

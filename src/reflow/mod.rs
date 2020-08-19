@@ -7,10 +7,13 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::checker::Checker;
-use crate::Documentation;
-use crate::LineColumn;
-use crate::Span;
-use crate::{Detector, Suggestion, SuggestionSet};
+use crate::documentation::{CheckableChunk, Documentation};
+use crate::util::sub_chars;
+use crate::{ContentOrigin, Detector, LineColumn, Range, Span, Suggestion, SuggestionSet};
+
+use indexmap::IndexMap;
+use log::trace;
+use pulldown_cmark::{Event, Options, Parser, Tag};
 
 /// Parameters for wrapping doc comments
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,6 +107,157 @@ impl Checker for Reflow {
 
         Ok(suggestions)
     }
+}
+
+struct Warp<'s> {
+    /// Original source string.
+    s: &'s str,
+    /// The sub-range of the string to reflow.
+    range: Range,
+    /// If there would occur a line break, that falls within a range of this
+    /// the break would only occur afterwards or the whole word gets moved to
+    /// the next line.
+    /// sorted by `.start` value.
+    unbreakable_ranges: Vec<Range>,
+}
+
+impl<'s> Iterator for Warp<'s> {
+    // Yields a tuple:
+    //
+    // * lineno
+    // * content of that line
+    // * and ranges relative to the original string which are covered by content
+    type Item = (usize, &'s str, Vec<Range>);
+    fn next(&mut self) -> Option<Self::Item> {
+        // @todo all the logic to check if the next word still fits into the desired line
+        unimplemented!("Not yet friendo")
+    }
+}
+
+fn reflow_inner<'s>(
+    origin: ContentOrigin,
+    chunk: &'s CheckableChunk,
+    range: Range,
+    unbreakable_ranges: &[Range],
+) -> Vec<Suggestion<'s>> {
+    let mut warper = Warp {
+        s: chunk.as_str(),
+        range,
+        unbreakable_ranges: unbreakable_ranges.to_vec(),
+    };
+    for (lineno, content, range) in warper {
+        unimplemented!("...")
+    }
+    let replacement = unimplemented!();
+    let span = unimplemented!();
+    vec![Suggestion {
+        detector: Detector::Reflow,
+        origin,
+        chunk,
+        span,
+        range,
+        replacements: vec![replacement],
+        description: None,
+    }]
+}
+
+fn reflow<'s>(origin: ContentOrigin, chunk: &'s CheckableChunk) -> Vec<Suggestion<'s>> {
+    let parser = Parser::new_ext(chunk.as_str(), Options::all());
+
+    let rust_fence =
+        pulldown_cmark::CodeBlockKind::Fenced(pulldown_cmark::CowStr::Borrowed("rust"));
+
+    let mut paragraph = 0usize;
+    let mut unbreakable_stack: Vec<Range> = Vec::with_capacity(16); // no more than 16 items will be nested, commonly it's 2 or 3
+    let mut unbreakables = Vec::with_capacity(1024);
+
+    let mut acc = Vec::with_capacity(256);
+
+    for (event, cover) in parser.into_offset_iter() {
+        let mut store = |end: usize, unbreakable_ranges: &[Range]| -> usize {
+            let range = Range {
+                start: paragraph,
+                end,
+            };
+            acc.extend(reflow_inner(
+                origin.clone(),
+                chunk,
+                range,
+                unbreakables.as_slice(),
+            ));
+            end // a new beginning (maybe)
+        };
+
+        match event {
+            Event::Start(tag) => {
+                // @todo check links
+                match tag {
+                    Tag::Image(_, _, _)
+                    | Tag::Link(_, _, _)
+                    | Tag::Strong
+                    | Tag::Emphasis
+                    | Tag::Strikethrough => {
+                        unbreakable_stack.push(cover);
+                    }
+                    Tag::Paragraph => {
+                        paragraph = cover.start;
+                    }
+                    _ => {
+                        // all of these break a reflow-able chunk
+                        paragraph = store(paragraph, unbreakables.as_slice());
+                    }
+                }
+            }
+            Event::End(tag) => {
+                match tag {
+                    Tag::Image(_, _, _)
+                    | Tag::Link(_, _, _)
+                    | Tag::Strong
+                    | Tag::Emphasis
+                    | Tag::Strikethrough => {
+                        // technically we only need the bottom-most range, since all others - by def - are contained in there
+                        // so there
+                        if unbreakable_stack.len() == 1 {
+                            unbreakables.push(cover);
+                        } else if let Some(parent) = unbreakables.last() {
+                            debug_assert!(parent.contains(&cover.start));
+                            debug_assert!(parent.contains(&(cover.end - 1)));
+                        }
+                    }
+                    Tag::Paragraph => {
+                        // regular end of paragraph
+                        paragraph = store(paragraph, unbreakables.as_slice());
+                    }
+                    _ => {
+                        paragraph = cover.end;
+                    }
+                }
+            }
+            Event::Text(_s) => {}
+            Event::Code(_s) => {}
+            Event::Html(_s) => {
+                // @todo verify this does not interfere with paragraphs
+            }
+            Event::FootnoteReference(_s) => {
+                // boring
+            }
+            Event::SoftBreak => {
+                // ignored
+            }
+            Event::HardBreak => {
+                paragraph = store(paragraph, unbreakables.as_slice());
+            }
+            Event::Rule => {
+                // @todo how to proceed to past this? do all paragraphs end before
+                paragraph = store(paragraph, unbreakables.as_slice());
+            }
+            Event::TaskListMarker(_b) => {
+                // ignored
+            }
+        }
+    }
+
+    acc
 }
 
 #[cfg(test)]

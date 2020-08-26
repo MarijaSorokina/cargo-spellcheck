@@ -15,20 +15,12 @@ use indexmap::IndexMap;
 use log::trace;
 use pulldown_cmark::{Event, Options, Parser, Tag};
 
-/// Parameters for wrapping doc comments
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReflowConfig {
-    /// Hard limit for absolute length of lines.
-    max_line_length: usize,
-}
 
-impl Default for ReflowConfig {
-    fn default() -> Self {
-        Self {
-            max_line_length: 70,
-        }
-    }
-}
+mod config;
+pub use config::ReflowConfig;
+
+mod iter;
+pub use iter::Warp;
 
 #[derive(Debug)]
 pub struct Reflow;
@@ -109,47 +101,14 @@ impl Checker for Reflow {
     }
 }
 
-struct Warp<'s> {
-    /// Original source string.
-    s: &'s str,
-    /// The sub-range of the string to reflow.
-    range: Range,
-    /// If there would occur a line break, that falls within a range of this
-    /// the break would only occur afterwards or the whole word gets moved to
-    /// the next line.
-    /// sorted by `.start` value.
-    unbreakable_ranges: Vec<Range>,
-}
-
-impl<'s> Iterator for Warp<'s> {
-    // Yields a tuple:
-    //
-    // * lineno
-    // * content of that line
-    // * and ranges relative to the original string which are covered by content
-    type Item = (usize, &'s str, Vec<Range>);
-    fn next(&mut self) -> Option<Self::Item> {
-        // @todo all the logic to check if the next word still fits into the desired line
-        unimplemented!("Not yet friendo")
-    }
-}
-
 fn reflow_inner<'s>(
     origin: ContentOrigin,
     s: &'s str,
     range: Range,
     unbreakable_ranges: &[Range],
 ) -> Option<String> {
-    let mut warper = Warp {
-        s,
-        range,
-        unbreakable_ranges: unbreakable_ranges.to_vec(),
-    };
-    let mut acc = String::with_capacity(512);
-    for (lineno, content, range) in warper {
-        unimplemented!("...")
-    }
-    Some(acc)
+    let mut warper = unimplemented!();
+    unimplemented!()
 }
 
 fn reflow<'s>(origin: ContentOrigin, chunk: &'s CheckableChunk) -> Vec<Suggestion<'s>> {
@@ -325,4 +284,5 @@ r#" This module contains documentation thats
  are two consecutive newlines in one
  connected documentation span."#);
     }
+
 }
